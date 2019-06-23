@@ -216,10 +216,11 @@ void setAll(byte red, byte green, byte blue) {
 }
 
 void timerLight() {
+  grabTime();
    int hourTime = now.hour();
   if(now.hour()>11)hourTime = hourTime - 12;
    hourTime = (hourTime * 9) +((now.minute() * 9) / 60);
-   hourTime = hourTime + 36;
+   hourTime = hourTime + 35;
    Serial.print("hourTime");
    Serial.println(hourTime);
    if (hourTime >= 104) hourTime = hourTime - 104;
@@ -229,5 +230,11 @@ void timerLight() {
    leds[hourTime + 1] = CRGB::Red; 
    FastLED.show();
   
+}
+void grabTime(){
+  int dS = 0;
+  now = RTC.now();
+   if((now.month()<3&&now.month()>11)||(now.month()==3&&now.day()<11)||(now.month()==11&&now.day()>6))dS=1;
+   now = (now.unixtime() - dS*3600);
 }
 
