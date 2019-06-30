@@ -6,7 +6,7 @@
 #define NUM_LEDS 106
 CRGB leds[NUM_LEDS];
 #define PIN 9 
-int dateArray [4][2] = {{7,4}, {12,25}, {1,1}, {8,4}};
+int dateArray [4][2] = {{7,4}, {12,25}, {1,1}, {10,31}};
 int ledArray [11][3] = {{245,68,0},{254,127,156},{238,165,130},{255,250,244},{255,255,255},{255,255,251},{255,255,255},{250,214,165},{38,83,141},{0,85,165},{25,25,112}};
 float const LONGITUDE = -149.903;
 float const LATITUDE = 61.21;
@@ -30,7 +30,7 @@ void setup()
   RTC.begin();
   Serial.begin(57600);
   //RTC.adjust(DateTime(F(__DATE__), F(__TIME__))); 
-   //RTC.adjust(DateTime(2019,10,1,2,30,0)); 
+   //RTC.adjust(DateTime(2019,1,1,12,00,0)); 
   tardis.TimeZone(-8 * 60); // tell TimeLord what timezone your RTC is synchronized to. You can ignore DST
   // as long as the RTC never changes back and forth between DST and non-DST
   tardis.Position(LATITUDE, LONGITUDE); // tel
@@ -216,8 +216,14 @@ void setAll(byte red, byte green, byte blue) {
 }
 
 void timerLight() {
-  grabTime();
+  
+   int dS = 0;
+   now = RTC.now();
+   if((now.month()<3||now.month()>11)||(now.month()==3&&now.day()<11)||(now.month()==11&&now.day()>6))dS=1;
+   now = (now.unixtime() - dS*3600);
    int hourTime = now.hour();
+   Serial.print("now.hour");
+   Serial.print(hourTime);
   if(now.hour()>11)hourTime = hourTime - 12;
    hourTime = (hourTime * 9) +((now.minute() * 9) / 60);
    hourTime = hourTime + 35;
@@ -230,11 +236,5 @@ void timerLight() {
    leds[hourTime + 1] = CRGB::Red; 
    FastLED.show();
   
-}
-void grabTime(){
-  int dS = 0;
-  now = RTC.now();
-   if((now.month()<3&&now.month()>11)||(now.month()==3&&now.day()<11)||(now.month()==11&&now.day()>6))dS=1;
-   now = (now.unixtime() - dS*3600);
 }
 
