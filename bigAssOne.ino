@@ -43,7 +43,7 @@ DateTime now; // define variable to hold date and time
 bool hiLow;
 DateTime intoTime;
 void servoMove(){
-   myservo.attach(9,600,2400);//important if you want your servo to do a maximum 180 degrees--most have their querks
+   myservo.attach(D10,600,2400);//important if you want your servo to do a maximum 180 degrees--most have their querks
   delay(200);
   myservo.writeMicroseconds(servoWrite);
   delay(8000);
