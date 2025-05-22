@@ -1,6 +1,14 @@
+#include <TFT_eSPI.h> // Graphics and font library for ILI9341 driver chip
+
+#define TFT_GREY 0x5AEB // New colour
+
+TFT_eSPI tft = TFT_eSPI();  // Invoke library
 
 #include <ESP32Servo.h>
-
+bool mainHiLow = 1;
+ 
+ 
+ int hourDifference = 0;
 #include <SPI.h>
 
 
@@ -46,7 +54,13 @@ int zip = 0;
 
 
 void setup() {
-  // put your setuWire.begin();  
+  // put your setuWire.begin(); 
+  tft.init();
+  tft.setRotation(3);
+  tft.fillScreen(TFT_BLACK);
+
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.setTextFont(4);
   RTC.begin();
   Serial.begin(115200);
   delay(1000);
@@ -64,6 +78,7 @@ void setup() {
 
 void loop(){
   delay(8000);
+  
 Serial.print("im here");
   dS = 0;
   now = RTC.now();
@@ -102,7 +117,8 @@ zip++;
    if( futureHighGate && futureLowGate) {
   
     armMove(now, futureHigh, futureLow, dS);
-    
+    SerialScreen(now, futureHigh, futureLow,dS);
+    graphTide( now, futureHigh, futureLow, dS);
     delay(4000);
     gate = 1;
     bing = 0;
@@ -173,5 +189,116 @@ zip++;
   delay(1000);
   //servoMove();
   
+}
+void SerialScreen(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
+   bool hiLow;
+   tft.fillScreen(TFT_BLACK);
+   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+   tft.setTextFont(4);
+   tft.setCursor(0, 0);
+   if( int(futureHigh.unixtime() - futureLow.unixtime()) < 0) hiLow = 1;
+   if( int(futureHigh.unixtime() - futureLow.unixtime()) > 0) hiLow = 0;
+ 
+  if (hiLow) {
+    tft.print("HI         ");
+    tft.println("LOW");
+    tft.print(futureHigh.hour() +1, DEC); 
+  tft.print(":");
+  if (futureHigh.minute() < 10) {
+    tft.print("0");
+    tft.print(futureHigh.minute());
+   }
+  else if (futureHigh.minute() >= 10) {
+    tft.print(futureHigh.minute());
+  }
+  tft.print("       ");
+  tft.print(futureLow.hour() +1, DEC); 
+  tft.print(":");
+  if (futureLow.minute() < 10) {
+    tft.print("0");
+    tft.print(futureLow.minute());
+   }
+  else if (futureLow.minute() >= 10) {
+   tft.print(futureLow.minute());
+  }
+    
+  }
+  else {
+    tft.print("LOW         ");
+    tft.println("HI");
+    tft.print(futureLow.hour() +1, DEC); 
+  tft.print(":");
+  if (futureLow.minute() < 10) {
+   tft.print("0");
+   tft.print(futureLow.minute());
+   }
+  else if (futureLow.minute() >= 10) {
+    tft.print(futureLow.minute());
+  }
+  tft.print("       ");
+   tft.print(futureHigh.hour() +1, DEC); 
+   tft.print(":");
+  if (futureHigh.minute() < 10) {
+    tft.print("0");
+    tft.print(futureHigh.minute());
+   }
+  else if (futureHigh.minute() >= 10) {
+    tft.print(futureHigh.minute());
+  }
+  }
+  tft.println();
+  tft.println();
+  tft.println();
+  tft.println();
+  tft.setTextColor(TFT_RED, TFT_BLACK);
+  tft.drawCentreString("Whittier Dock Tide", 125, 55, 4);
+}
+void graphTide(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
+  
+  
+  
+  
+   if(futureHigh.unixtime() > futureLow.unixtime() ){
+      hourDifference =  ((futureLow.unixtime() - now.unixtime())/3600);
+     mainHiLow = 0;
+   }
+   else {
+     hourDifference =  ((futureHigh.unixtime() - now.unixtime())/3600);
+    mainHiLow = 1;
+   }
+   
+   tft.setCursor(10, 80);
+   tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  tft.print(hourDifference);
+   tft.print(" HOURS TO");
+   if(mainHiLow)tft.println("   HIGH"); 
+   else tft.println("    LOW");
+   
+   
+    Serial.println();
+    hourDifference = map(hourDifference, 0,6,16,0);
+    hourDifference = constrain(hourDifference,0,16);
+    
+    //tft.println(myTideCalc.currentTide(now));
+
+   tft.setCursor(5, 105);   
+  tft.print(now.year(), DEC);
+  tft.print("/");
+  tft.print(now.month(), DEC); 
+  tft.print("/");
+  tft.print(now.day(), DEC); 
+  tft.print("  ");
+  tft.print(now.hour() + 1, DEC); 
+  tft.print(":");
+  if (now.minute() < 10) {
+    tft.print("0");
+    tft.println(now.minute());
+   }
+  else if (now.minute() >= 10) {
+    tft.println(now.minute());
+  }
+ tft.print(" ");
+
+       
 }
    
