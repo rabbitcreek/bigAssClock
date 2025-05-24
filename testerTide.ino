@@ -1,32 +1,36 @@
+#include <FastLED.h>
 #include <TFT_eSPI.h> // Graphics and font library for ILI9341 driver chip
-#include <Preferences.h>
-Preferences preferences; 
-const int  buttonPin1 = 0; 
-const int  buttonPin2 = 35; 
-int buttonPushCounter1 = 0;   // counter for the number of button presses
+#include <Preferences.h>  //This Library allows permenant storage of the correction factor of where the arm is located 
+#define NUM_LEDS 35
+#define PIN 15 
+CRGB leds[NUM_LEDS];
+Preferences preferences; //this sets the preferences library
+const int  buttonPin1 = 0; //left button sets the number of correction from 1 to 120
+const int  buttonPin2 = 35; //right button after multiple(10)pushes resumes program
+int buttonPushCounter1 = 0;   // counter for the number of button pressesLeft
 int buttonState1 = 1;         // current state of the button
 int lastButtonState1 = 0;  
-int buttonPushCounter2 = 0;   // counter for the number of button presses
+int buttonPushCounter2 = 0;   // counter for the number of button pressesRight
 int buttonState2 = 1;         // current state of the button
 int lastButtonState2 = 0;
-TFT_eSPI tft = TFT_eSPI();  // Invoke library
+TFT_eSPI tft = TFT_eSPI();  // Invoke library for screen
 
-#include <ESP32Servo.h>
+#include <ESP32Servo.h>  //Servo library
 bool mainHiLow = 1; 
  int hourDifference = 0;
 #include <SPI.h>
-Servo myservo;
+Servo myservo;//starts servo
 #include <Wire.h> 
 
 #include <SPI.h> // Required for RTClib to compile properly
 #include <RTClib.h> // From https://github.com/millerlp/RTClib
 // Real Time Clock setup
-RTC_DS3231 RTC; // Uncomment when using this chip
-int dS = 0;
+RTC_DS3231 RTC; // sets up RTC
+int dS = 0;//correction for daylight savings...you set the RTC for current time!!!
 DateTime futureHigh;
 DateTime futureLow;
 DateTime future;
-int correction = 0;
+int correction = 0;// this is the correction factor
 int slope;
 int i = 0;
 int zag = 0;
@@ -39,7 +43,7 @@ float tidalDifference=0;
  bool futureHighGate = 0;
 // Tide calculation library setup.
 // Change the library name here to predict for a different site.
-#include "TidelibValdezPrinceWilliamSoundAlaska.h"
+#include "TidelibValdezPrinceWilliamSoundAlaska.h"//this will run out of data in 5 years!!
 // Other sites available at http://github.com/millerlp/Tide_calculator
 TideCalc myTideCalc; // Create TideCalc object 
 
@@ -60,28 +64,27 @@ void setup() {
   RTC.begin();
   Serial.begin(115200);
   delay(1000);
-  myservo.attach(13,600,2400);
+  FastLED.addLeds<WS2811, PIN, GRB>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  myservo.attach(13,600,2400);  //this is  the total range for the servo
   //correction = 60;
   // Draw clock face
  //RTC.adjust(DateTime(F(__DATE__), F(__TIME__))); 
   //RTC.adjust(DateTime(2019,10,1,7,30,0)); 
-  // Start up the oled display
-   //ESP32PWM::allocateTimer(0);
-  myservo.setPeriodHertz(50);
+  myservo.setPeriodHertz(50);//this is the speed that most servos run
   // put your setup code here, to run once:
-  pinMode(buttonPin1, INPUT_PULLUP);
+  pinMode(buttonPin1, INPUT_PULLUP);//buttons are grounded to activate...low/on
   pinMode(buttonPin2, INPUT_PULLUP);
-  tft.init();
+  tft.init();//starts screen
   tft.setRotation(3);
   tft.fillScreen(TFT_BLACK);
   tft.fillScreen(TFT_RED);
-  preferences.begin("correction", false);
-  unsigned int counter = preferences.getUInt("counter", 0);
-  if(!digitalRead(buttonPin2)){
-  while(buttonPushCounter2 < 10)wtRead();
-  counter = buttonPushCounter1;
-  preferences.putUInt("counter", counter);
-  preferences.end();
+  preferences.begin("correction", false);//starts saving program
+  unsigned int counter = preferences.getUInt("counter", 0);//grabs counter from memory if power goes out...returns zero if nothing in memory
+  if(!digitalRead(buttonPin2)){     //hold down Right button on power up to activate correction program...
+  while(buttonPushCounter2 < 10)wtRead();  //uses wtRead function to get correction presses from L button until R button is pressed 10 times 
+  counter = buttonPushCounter1;  //puts counts into the memory
+  preferences.putUInt("counter", counter); //stores counter in memory
+  preferences.end();//closes preference
   }
   correction = counter;
   tft.setRotation(3);
@@ -90,14 +93,14 @@ void setup() {
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
   tft.setTextFont(4);
 Serial.print("counter: ");
-Serial.println(counter);
+Serial.println(counter);//reveals the contents of the correction
 }
 
 
 void loop(){
-  delay(10000);
+  EVERY_N_SECONDS(10){
   
-Serial.print("im here");
+
   dS = 0;
   now = RTC.now();
 zip++;
@@ -137,6 +140,7 @@ zip++;
     armMove(now, futureHigh, futureLow, dS);
     SerialScreen(now, futureHigh, futureLow,dS);
     graphTide( now, futureHigh, futureLow, dS);
+    lightTime();
     delay(4000);
     gate = 1;
     bing = 0;
@@ -179,26 +183,27 @@ zip++;
     Serial.println(intoTime.second());
   }
 }
-  void armMove(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
+}
+  void armMove(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){  // This takes high and low tide and figures amount to move servo
    
    
    int hourFuture = 0;
    DateTime nextTime;
-   if( int(futureHigh.unixtime() - futureLow.unixtime()) < 0) hiLow = 1;
+   if( int(futureHigh.unixtime() - futureLow.unixtime()) < 0) hiLow = 1;  //Determines if the next is high or low tide hiLow=1 next high hiLow=0 next low
    if( int(futureHigh.unixtime() - futureLow.unixtime()) > 0) hiLow = 0;
   if(hiLow)nextTime = futureHigh;
-  else nextTime = futureLow;
+  else nextTime = futureLow;   //sets next hour movement for arm
   hourFuture = nextTime.hour();
-  hourFuture = hourFuture+1;
-  if(nextTime.hour()>11)hourFuture=hourFuture-12;
-  if(hiLow==0)hourFuture=hourFuture+6;//this uses only one side to pointer to set high and low tides
-  if(hourFuture>11)hourFuture=hourFuture-12;
+  hourFuture = hourFuture+1;  //arbitrary increase to make things right...you need this but cant figure out why
+  if(nextTime.hour()>11)hourFuture=hourFuture-12;  //clock arithmatic to make all the hours fit on 12 hour clock
+  if(hiLow==0)hourFuture=hourFuture+6;//this uses only one side to pointer to set high and low tides adds 6 hours on clock to set the low arm side
+  if(hourFuture>11)hourFuture=hourFuture-12;//clock arithmetic again...
   
   
-  servoWrite=(hourFuture*10)+((nextTime.minute()*10)/60);
-  servoWrite = servoWrite + correction;
-  if(servoWrite > 120)servoWrite = servoWrite - 120;
-  servoWrite = constrain(servoWrite, 0, 120);
+  servoWrite=(hourFuture*10)+((nextTime.minute()*10)/60);// multiplies hours by ten to make the minutes calculation easier
+  servoWrite = servoWrite + correction;//this is where your correction goes to make the arm swing to the 12 oclock position or start from anywhere it is arbitrarly sits
+  if(servoWrite > 120)servoWrite = servoWrite - 120;//more clock arithmatic
+  servoWrite = constrain(servoWrite, 0, 120);//limits to clock
   Serial.print(servoWrite);
   Serial.print("servoWriteOne");
   
@@ -206,12 +211,12 @@ zip++;
   //servoWrite=constrain(servoWrite,1170,1400);
   Serial.print("servoWriteTwo:");
   Serial.print(servoWrite);
-  myservo.writeMicroseconds(servoWrite);
+  myservo.writeMicroseconds(servoWrite);//this is where the servo is moved
   delay(1000);
   //servoMove();
   
 }
-void SerialScreen(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
+void SerialScreen(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){  //this just prints out high and low tide and time
    bool hiLow;
    tft.fillScreen(TFT_BLACK);
    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
@@ -274,7 +279,7 @@ void SerialScreen(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
   tft.setTextColor(TFT_RED, TFT_BLACK);
   tft.drawCentreString("Whittier Dock Tide", 125, 55, 4);
 }
-void graphTide(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
+void graphTide(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){  //this function just tells how much time before next tide and current time
   
   
   
@@ -322,7 +327,7 @@ void graphTide(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
 
        
 }
-void wtRead(){
+void wtRead(){   //function that inputs the correction: the dial is 120 total...if arm is at 9 oclock that would be correction: 90  6 oclock: 60  
   buttonState1 = digitalRead(buttonPin1);
   if (buttonState1 != lastButtonState1) {
     // if the state has changed, increment the counter
@@ -348,12 +353,7 @@ void wtRead(){
       // if the current state is HIGH then the button went from off to on:
       buttonPushCounter2++;
       
-      //buttonPushCounter1  = 0;
       
-      if(buttonPushCounter2 == 3){
-        //Serial.print("total wt = ");
-        //Serial.print(wtTotal);
-      }
     } else {
       // if the current state is LOW then the button went from on to off:
      // Serial.println("off");
@@ -367,5 +367,62 @@ void wtRead(){
   
   tft.drawNumber(buttonPushCounter1, 40,40,7);
   }
+}
+void lightTime(){
+  setAll(0,0,0);
+  setAll(250,214,165);
+  timerLight();
+}
+void setAll(byte red, byte green, byte blue) {
+  for(int i = 0; i < NUM_LEDS; i++ ) {
+    setPixel(i, red, green, blue); 
+  }
+  FastLED.show();
+}
+void timerLight() {
+  /*
+   int dS = 0;
+   now = RTC.now();
+   if((now.month()<3||now.month()>11)||(now.month()==3&&now.day()<11)||(now.month()==11&&now.day()>6))dS=1;
+   now = (now.unixtime() - dS*3600);
+   int hourTime = now.hour();
+   Serial.print("now.hour");
+   Serial.print(hourTime);
+  if(now.hour()>11)hourTime = hourTime - 12;
+   hourTime = (hourTime * 9) +((now.minute() * 9) / 60);
+   hourTime = hourTime + 35;
+   Serial.print("hourTime");
+   Serial.println(hourTime);
+   if (hourTime >= 104) hourTime = hourTime - 104;
+   if (hourTime == 0) hourTime = 1;
+   */
+   now = RTC.now();
+   if((now.month()<3||now.month()>11)||(now.month()==3&&now.day()<11)||(now.month()==11&&now.day()>6))dS=1;
+   now = (now.unixtime() - dS*3600);
+   int hourTime = now.hour();
+   Serial.print("now.hour");
+   Serial.print(hourTime);
+  if(now.hour()>11)hourTime = hourTime - 12;
+   hourTime = (hourTime * 3)+ ((now.minute() * 3) / 60);
+   
+   Serial.print("hourTime");
+   Serial.println(hourTime);
+   
+   leds[hourTime - 1] = CRGB::Red; 
+   leds[hourTime] = CRGB::Red; 
+   leds[hourTime + 1] = CRGB::Red; 
+   FastLED.show();
+}
+void setPixel(int Pixel, byte red, byte green, byte blue) {
+ #ifdef ADAFRUIT_NEOPIXEL_H 
+   // NeoPixel
+   strip.setPixelColor(Pixel, strip.Color(red, green, blue));
+ #endif
+ #ifndef ADAFRUIT_NEOPIXEL_H 
+   // FastLED
+   leds[Pixel].r = red;
+   leds[Pixel].g = green;
+   leds[Pixel].b = blue;
+ #endif
 }
    
