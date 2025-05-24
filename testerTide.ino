@@ -1,17 +1,20 @@
 #include <TFT_eSPI.h> // Graphics and font library for ILI9341 driver chip
-
-#define TFT_GREY 0x5AEB // New colour
-
+#include <Preferences.h>
+Preferences preferences; 
+const int  buttonPin1 = 0; 
+const int  buttonPin2 = 35; 
+int buttonPushCounter1 = 0;   // counter for the number of button presses
+int buttonState1 = 1;         // current state of the button
+int lastButtonState1 = 0;  
+int buttonPushCounter2 = 0;   // counter for the number of button presses
+int buttonState2 = 1;         // current state of the button
+int lastButtonState2 = 0;
 TFT_eSPI tft = TFT_eSPI();  // Invoke library
 
 #include <ESP32Servo.h>
-bool mainHiLow = 1;
- 
- 
+bool mainHiLow = 1; 
  int hourDifference = 0;
 #include <SPI.h>
-
-
 Servo myservo;
 #include <Wire.h> 
 
@@ -23,6 +26,7 @@ int dS = 0;
 DateTime futureHigh;
 DateTime futureLow;
 DateTime future;
+int correction = 0;
 int slope;
 int i = 0;
 int zag = 0;
@@ -39,10 +43,6 @@ float tidalDifference=0;
 // Other sites available at http://github.com/millerlp/Tide_calculator
 TideCalc myTideCalc; // Create TideCalc object 
 
-// 0X3C+SA0 - 0x3C or 0x3D for oled screen on I2C bus
-//#define I2C_ADDRESS 0x3C
-
-//SSD1306AsciiWire oled; // create oled dispaly object
 
 long oldmillis; // keep track of time
 float results; // tide height
@@ -55,29 +55,47 @@ int zip = 0;
 
 void setup() {
   // put your setuWire.begin(); 
-  tft.init();
-  tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);
-
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.setTextFont(4);
+  
+  
   RTC.begin();
   Serial.begin(115200);
   delay(1000);
   myservo.attach(13,600,2400);
-  
+  //correction = 60;
   // Draw clock face
  //RTC.adjust(DateTime(F(__DATE__), F(__TIME__))); 
   //RTC.adjust(DateTime(2019,10,1,7,30,0)); 
   // Start up the oled display
    //ESP32PWM::allocateTimer(0);
   myservo.setPeriodHertz(50);
+  // put your setup code here, to run once:
+  pinMode(buttonPin1, INPUT_PULLUP);
+  pinMode(buttonPin2, INPUT_PULLUP);
+  tft.init();
+  tft.setRotation(3);
+  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_RED);
+  preferences.begin("correction", false);
+  unsigned int counter = preferences.getUInt("counter", 0);
+  if(!digitalRead(buttonPin2)){
+  while(buttonPushCounter2 < 10)wtRead();
+  counter = buttonPushCounter1;
+  preferences.putUInt("counter", counter);
+  preferences.end();
+  }
+  correction = counter;
+  tft.setRotation(3);
+  tft.fillScreen(TFT_BLACK);
 
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.setTextFont(4);
+Serial.print("counter: ");
+Serial.println(counter);
 }
 
 
 void loop(){
-  delay(8000);
+  delay(10000);
   
 Serial.print("im here");
   dS = 0;
@@ -178,11 +196,14 @@ zip++;
   
   
   servoWrite=(hourFuture*10)+((nextTime.minute()*10)/60);
+  servoWrite = servoWrite + correction;
+  if(servoWrite > 120)servoWrite = servoWrite - 120;
+  servoWrite = constrain(servoWrite, 0, 120);
   Serial.print(servoWrite);
   Serial.print("servoWriteOne");
   
   servoWrite=map(servoWrite,0,120,1170,1400);//each servo is different--these are the micorseconds limits for mine
-  servoWrite=constrain(servoWrite,1170,1400);
+  //servoWrite=constrain(servoWrite,1170,1400);
   Serial.print("servoWriteTwo:");
   Serial.print(servoWrite);
   myservo.writeMicroseconds(servoWrite);
@@ -300,5 +321,51 @@ void graphTide(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){
  tft.print(" ");
 
        
+}
+void wtRead(){
+  buttonState1 = digitalRead(buttonPin1);
+  if (buttonState1 != lastButtonState1) {
+    // if the state has changed, increment the counter
+    if (buttonState1 == LOW) {
+      // if the current state is HIGH then the button went from off to on:
+      buttonPushCounter1++;
+      //Serial.println("on");
+      //Serial.print("number of button pushes: ");
+      //Serial.println(buttonPushCounter1);
+     
+    } else {
+      // if the current state is LOW then the button went from on to off:
+     // Serial.println("off");
+    }
+    // Delay a little bit to avoid bouncing
+    delay(50);
+  }
+  lastButtonState1 = buttonState1;
+  buttonState2 = digitalRead(buttonPin2);
+  if (buttonState2 != lastButtonState2) {
+    // if the state has changed, increment the counter
+    if (buttonState2 == LOW) {
+      // if the current state is HIGH then the button went from off to on:
+      buttonPushCounter2++;
+      
+      //buttonPushCounter1  = 0;
+      
+      if(buttonPushCounter2 == 3){
+        //Serial.print("total wt = ");
+        //Serial.print(wtTotal);
+      }
+    } else {
+      // if the current state is LOW then the button went from on to off:
+     // Serial.println("off");
+    }
+    // Delay a little bit to avoid bouncing
+    delay(50);
+  }
+  lastButtonState2 = buttonState2;
+  tft.setTextColor(TFT_GREEN, TFT_BLACK);
+  if(buttonPushCounter2 == 0){
+  
+  tft.drawNumber(buttonPushCounter1, 40,40,7);
+  }
 }
    
