@@ -1,7 +1,7 @@
 #include <FastLED.h>
 #include <TFT_eSPI.h> // Graphics and font library for ILI9341 driver chip
 #include <Preferences.h>  //This Library allows permenant storage of the correction factor of where the arm is located 
-#define NUM_LEDS 35
+#define NUM_LEDS 106
 #define PIN 15 
 CRGB leds[NUM_LEDS];
 Preferences preferences; //this sets the preferences library
@@ -98,14 +98,14 @@ Serial.println(counter);//reveals the contents of the correction
 
 
 void loop(){
-  EVERY_N_SECONDS(10){
+  EVERY_N_MINUTES(1){
   
 
   dS = 0;
   now = RTC.now();
-zip++;
+
   if((now.month()>3&&now.month()<11)||(now.month()==3&&now.day()>11)||(now.month()==11&&now.day()<6))dS=1;
-   now = (now.unixtime() - dS*3600 + (zip* 86400));
+   now = (now.unixtime() - dS*3600 );
    bing = 1;
    i = 0;
     pastResult=myTideCalc.currentTide(now);
@@ -328,6 +328,8 @@ void graphTide(DateTime now, DateTime futureHigh, DateTime futureLow,int dS){  /
        
 }
 void wtRead(){   //function that inputs the correction: the dial is 120 total...if arm is at 9 oclock that would be correction: 90  6 oclock: 60  
+  myservo.writeMicroseconds(1170);//this is where the servo is moved
+  tft.setTextColor(TFT_GREEN, TFT_BLACK);
   buttonState1 = digitalRead(buttonPin1);
   if (buttonState1 != lastButtonState1) {
     // if the state has changed, increment the counter
@@ -337,6 +339,7 @@ void wtRead(){   //function that inputs the correction: the dial is 120 total...
       //Serial.println("on");
       //Serial.print("number of button pushes: ");
       //Serial.println(buttonPushCounter1);
+     tft.drawNumber(buttonPushCounter1, 40,40,7);
      
     } else {
       // if the current state is LOW then the button went from on to off:
@@ -362,11 +365,6 @@ void wtRead(){   //function that inputs the correction: the dial is 120 total...
     delay(50);
   }
   lastButtonState2 = buttonState2;
-  tft.setTextColor(TFT_GREEN, TFT_BLACK);
-  if(buttonPushCounter2 == 0){
-  
-  tft.drawNumber(buttonPushCounter1, 40,40,7);
-  }
 }
 void lightTime(){
   setAll(0,0,0);
@@ -380,9 +378,17 @@ void setAll(byte red, byte green, byte blue) {
   FastLED.show();
 }
 void timerLight() {
-  /*
+  
    int dS = 0;
    now = RTC.now();
+    if (now.month() == 7 && now.day() == 4){
+      for (int j = 0; j < 5; j++){
+        
+  FadeInOut(0xff, 0x00, 0x00); // red
+  FadeInOut(0xff, 0xff, 0xff); // white 
+  FadeInOut(0x00, 0x00, 0xff); // blue
+      }
+    }
    if((now.month()<3||now.month()>11)||(now.month()==3&&now.day()<11)||(now.month()==11&&now.day()>6))dS=1;
    now = (now.unixtime() - dS*3600);
    int hourTime = now.hour();
@@ -395,7 +401,7 @@ void timerLight() {
    Serial.println(hourTime);
    if (hourTime >= 104) hourTime = hourTime - 104;
    if (hourTime == 0) hourTime = 1;
-   */
+   /*
    now = RTC.now();
    if((now.month()<3||now.month()>11)||(now.month()==3&&now.day()<11)||(now.month()==11&&now.day()>6))dS=1;
    now = (now.unixtime() - dS*3600);
@@ -404,7 +410,7 @@ void timerLight() {
    Serial.print(hourTime);
   if(now.hour()>11)hourTime = hourTime - 12;
    hourTime = (hourTime * 3)+ ((now.minute() * 3) / 60);
-   
+   */
    Serial.print("hourTime");
    Serial.println(hourTime);
    
@@ -424,5 +430,24 @@ void setPixel(int Pixel, byte red, byte green, byte blue) {
    leds[Pixel].g = green;
    leds[Pixel].b = blue;
  #endif
+}
+void FadeInOut(byte red, byte green, byte blue){
+  float r, g, b;
+      
+  for(int k = 0; k < 256; k=k+1) { 
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    FastLED.show();
+  }
+     
+  for(int k = 255; k >= 0; k=k-2) {
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    FastLED.show();
+  }
 }
    
