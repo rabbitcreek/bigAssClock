@@ -28,6 +28,7 @@ int i = 0;
 int zag = 0;
 bool gate = 1;
 int servoWrite = 0;
+int correction = 103;
 float tidalDifference=0;
  float pastResult;
  bool bing = 1;
@@ -185,8 +186,8 @@ void loop(){
   
   
   servoWrite=(hourFuture*10)+((nextTime.minute()*10)/60);// multiplies hours by ten to make the minutes calculation easier
-  //servoWrite = servoWrite + correction;//this is where your correction goes to make the arm swing to the 12 oclock position or start from anywhere it is arbitrarly sits
-  //if(servoWrite > 120)servoWrite = servoWrite - 120;//more clock arithmatic
+  servoWrite = servoWrite + correction;//this is where your correction goes to make the arm swing to the 12 oclock position or start from anywhere it is arbitrarly sits
+  if(servoWrite > 120)servoWrite = servoWrite - 120;//more clock arithmatic
   servoWrite = constrain(servoWrite, 0, 120);//limits to clock
   Serial.print(servoWrite);
   Serial.print("servoWriteOne");
